@@ -1,0 +1,16 @@
+{
+  "applications":[
+    {
+      "name":"MathJump",
+      "bucket":"1337coders-data",
+      "inputfolder":"MathJump/raw",
+      "outputfolder":"MathJump/csv",
+      "sections": [
+          "attempts",
+          "applicationevents",
+          "playerupdates",
+          "navigations"
+        ]
+      }
+  ]
+}

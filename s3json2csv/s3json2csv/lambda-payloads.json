@@ -1,0 +1,13 @@
+{
+    "s3json2csv": {
+        "lambda": {
+            "httpMethod": "POST",
+            "queryStringParameters": {
+                "appName": "MathJump",
+                "sectionName": "attempts",
+                "year": "2020",
+                "month": "5"
+            }
+        }
+    }
+}
