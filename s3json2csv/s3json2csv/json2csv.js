@@ -27,7 +27,7 @@ const AddLine = (context, line, processHeaders) => {
     }
   });
   
-  context.csvlines.push(values.join(",")+"\n");
+  context.csvlines.push(values.join(","));
   
   return context;
 };
@@ -40,7 +40,7 @@ const AddLines = (context, data) => {
   }
   
   return context;
-}
+};
 
 
 module.exports = {
