@@ -22,7 +22,7 @@ exports.handler =  async function(event, context) {
   if(event.queryStringParameters === null || event.queryStringParameters.sectionName === null) {
     return utils.fail(404,{message: `sectionName queryStringParameters not provided`});
   }
-  var sectionName = event.queryStringParameters.sectionName;;
+  var sectionName = event.queryStringParameters.sectionName;
 
   var appLookup = {};
   try {
@@ -36,7 +36,7 @@ exports.handler =  async function(event, context) {
       return a;
     },{});
   } catch(err) {
-    console.log(err)
+    console.log(err);
     return utils.fail(500,{message: `error loading config [${JSON.stringify(err)}]`});
   } 
 
@@ -70,8 +70,6 @@ exports.handler =  async function(event, context) {
   const outputprefix = `${app.outputfolder}/${sectionName}`;
   
   var filesProcessed = 0;
-  var mpu = null;
-  var parts = [];
   
   try {
     var data = await S3.listObjectsV2({
@@ -79,12 +77,7 @@ exports.handler =  async function(event, context) {
       Prefix: inputprefix,
     }).promise();
 
-    var csvContext = json2csv.StartFile(sectionName);
-
-    mpu = await S3.createMultipartUpload({
-      Bucket:app.bucket,
-      Key:`${outputprefix}/${sectionName}_${year}${month}${day}.csv`
-    }).promise();
+    var csvContext = await json2csv.StartFile(app.bucket,outputprefix,sectionName,year,month,day);
 
     do {
       for(const i in data.Contents) {
@@ -93,51 +86,33 @@ exports.handler =  async function(event, context) {
           Key:data.Contents[i].Key
         }).promise();
         const fileDataStr = fileData.Body.toString('ascii');
-        csvContext = json2csv.AddLines(csvContext,fileDataStr);
+        csvContext = await json2csv.AddLines(csvContext,fileDataStr);
         filesProcessed ++;
       }
 
-      var part = await S3.uploadPart({
-        Bucket:app.bucket,
-        Key:`${outputprefix}/${sectionName}_${year}${month}${day}.csv`,
-        UploadId:mpu.UploadId,
-        PartNumber:parts.length+1,
-        Body:csvContext.csvlines.join("\n") 
-      }).promise();
-      parts.push({
-        ETag: part.ETag,
-        PartNumber:parts.length+1
-      });
-      csvContext.csvlines = [];
-      
+      //await json2csv.Upload(csvContext);
+
       if(data.IsTruncated) {
         data = await S3.listObjectsV2({
           Bucket: app.bucket,
           ContinuationToken: data.NextContinuationToken,
         }).promise();
       }
+      data.IsTruncated = false;
 
     } while(data.IsTruncated);
 
-    await S3.completeMultipartUpload({
-      Bucket:app.bucket,
-      Key:`${outputprefix}/${sectionName}_${year}${month}${day}.csv`,
-      UploadId: mpu.UploadId,
-      MultipartUpload:{
-        Parts: parts
-      }
-    }).promise();
-
-    return utils.succeed({message: `Processed [${filesProcessed}] files with [${csvContext.csvlines.length}] records writtem`},'*','OPTIONS,POST');
+    await json2csv.Complete(csvContext);
+    return utils.succeed({message: `Processed [${filesProcessed}] files`},'*','OPTIONS,POST');
   } catch(err) {
-    if(mpu!==null) {
-      await S3.abortMultipartUpload({
-        Bucket:app.bucket,
-        Key:`${outputprefix}/${sectionName}_${year}${month}${day}.csv`,
-        UploadId:mpu.uploadId
-      }).promise();
-    }
-    
+    //if(mpu!==null) {
+    //  await S3.abortMultipartUpload({
+    //    Bucket:app.bucket,
+    //    Key:`${outputprefix}/${sectionName}_${year}${month}${day}.csv`,
+    //    UploadId:mpu.uploadId
+    //  }).promise();
+    //}
+    console.log(err);
     return utils.fail(500,{message: `error saving file [${JSON.stringify(err)}]`});
   }
 };
